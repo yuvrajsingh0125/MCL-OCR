@@ -1,12 +1,3 @@
-<<<<<<< HEAD
-from datetime import datetime
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from app.services.opencv_services import process_image
-from app.services.paddle_ocr_service import paddle_process_ocr
-from app.services.mistral_ocr_services import mistral_process_ocr
-from app.services.claude_service import process_document
-=======
->>>>>>> c728c2079154a0934e29b17955cfa132b21c3d8b
 import logging
 from datetime import datetime, timezone
 
@@ -21,16 +12,8 @@ from app.utils.file_utils import save_result_json, save_uploaded_file
 
 logger = logging.getLogger(__name__)
 
-<<<<<<< HEAD
-from app.utils.file_utils import save_uploaded_file, save_result_json
-
 router = APIRouter(prefix="/upload", tags=["Upload"])
 
-=======
-router = APIRouter(prefix="/upload", tags=["Upload"])
-
-
->>>>>>> c728c2079154a0934e29b17955cfa132b21c3d8b
 @router.post("/")
 async def upload_image(file: UploadFile = File(...)):
     saved_path = save_uploaded_file(file)
@@ -58,10 +41,5 @@ async def upload_image(file: UploadFile = File(...)):
         "message": "Document processed successfully",
         "filename": file.filename,
         "output_path": output_path,
-<<<<<<< HEAD
-        "extracted_data": llm_result
-    }
-=======
         "extracted_data": llm_result,
     }
->>>>>>> c728c2079154a0934e29b17955cfa132b21c3d8b
