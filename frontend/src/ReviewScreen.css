@@ -1,0 +1,656 @@
+/* =========================================
+   MCL PATR REVIEW SCREEN
+   ========================================= */
+
+.review-screen {
+  width: 100%;
+  min-height: 100dvh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #121414;
+  color: #e2e2e2;
+
+  font-family: "Inter", sans-serif;
+
+  overflow: hidden;
+}
+
+
+/* =========================================
+   HEADER
+   ========================================= */
+
+.review-header-bar {
+  width: 100%;
+  height: 64px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 16px;
+
+  background: #121414;
+
+  border-bottom: 1px solid rgba(65, 71, 81, 0.3);
+
+  z-index: 10;
+}
+
+
+.review-header-button {
+  width: 40px;
+  height: 40px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+
+  color: #c1c7d3;
+
+  cursor: pointer;
+
+  transition:
+    background 150ms ease,
+    opacity 150ms ease;
+}
+
+
+.review-header-button:hover {
+  background: #282a2b;
+}
+
+
+.review-header-button:active {
+  opacity: 0.8;
+}
+
+
+.review-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.review-brand h1 {
+  margin: 0;
+
+  color: #a3c9ff;
+
+  font-family: "Space Grotesk", sans-serif;
+
+  font-size: 20px;
+  line-height: 1;
+
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+}
+
+
+/* =========================================
+   MAIN
+   ========================================= */
+
+.review-main {
+  flex: 1;
+
+  width: 100%;
+
+  max-width: 1280px;
+
+  margin: 0 auto;
+
+  padding: 16px;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 16px;
+
+  box-sizing: border-box;
+
+  min-height: 0;
+}
+
+
+/* =========================================
+   VIEWPORT
+   ========================================= */
+
+.review-viewport {
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  overflow: hidden;
+
+  background: #1a1c1c;
+
+  border: 1px solid rgba(65, 71, 81, 0.3);
+}
+
+
+/* =========================================
+   VIEWPORT HEADER
+   ========================================= */
+
+.review-viewport-header {
+  height: 40px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 0 16px;
+
+  background: #1e2020;
+
+  border-bottom: 1px solid rgba(65, 71, 81, 0.3);
+}
+
+
+.review-status {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: #c1c7d3;
+
+  font-family: "Inter", sans-serif;
+
+  font-size: 12px;
+  line-height: 16px;
+
+  font-weight: 600;
+
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+}
+
+
+.review-status-dot {
+  width: 8px;
+  height: 8px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #a3c9ff;
+
+  animation: review-pulse 1.8s ease-in-out infinite;
+}
+
+
+@keyframes review-pulse {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+
+/* =========================================
+   IMAGE AREA
+   ========================================= */
+
+.review-image-area {
+  position: relative;
+
+  flex: 1;
+
+  min-height: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  padding: 16px;
+
+  overflow: hidden;
+
+  background: #0c0f0f;
+}
+
+
+.review-document-image {
+  display: block;
+
+  max-width: 100%;
+  max-height: 100%;
+
+  width: auto;
+  height: auto;
+
+  object-fit: contain;
+
+  border: 1px solid rgba(65, 71, 81, 0.2);
+
+  box-shadow:
+    0 0 15px rgba(255, 255, 255, 0.02);
+
+  /*
+   * IMPORTANT:
+   * No fake image.
+   *
+   * This image comes directly from
+   * CameraScreen's capturedImage.
+   */
+}
+
+
+/* =========================================
+   RETICLES
+   ========================================= */
+
+.review-reticle {
+  position: absolute;
+
+  width: 24px;
+  height: 24px;
+
+  border-color: rgba(65, 71, 81, 0.5);
+
+  pointer-events: none;
+
+  z-index: 2;
+}
+
+
+.review-reticle-tl {
+  top: 16px;
+  left: 16px;
+
+  border-top: 2px solid;
+  border-left: 2px solid;
+}
+
+
+.review-reticle-tr {
+  top: 16px;
+  right: 16px;
+
+  border-top: 2px solid;
+  border-right: 2px solid;
+}
+
+
+.review-reticle-bl {
+  bottom: 16px;
+  left: 16px;
+
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+}
+
+
+.review-reticle-br {
+  bottom: 16px;
+  right: 16px;
+
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+}
+
+
+/* =========================================
+   CENTER CROSSHAIR
+   ========================================= */
+
+.review-crosshair {
+  position: absolute;
+
+  inset: 0;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  pointer-events: none;
+
+  opacity: 0.2;
+}
+
+
+.review-crosshair-vertical {
+  position: absolute;
+
+  width: 1px;
+  height: 64px;
+
+  background: #a3c9ff;
+}
+
+
+.review-crosshair-horizontal {
+  position: absolute;
+
+  width: 64px;
+  height: 1px;
+
+  background: #a3c9ff;
+}
+
+
+/* =========================================
+   ACTION PANEL
+   ========================================= */
+
+.review-actions {
+  flex-shrink: 0;
+
+  height: 96px;
+
+  display: grid;
+
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  gap: 16px;
+}
+
+
+.review-action-button {
+  height: 100%;
+
+  border: 1px solid;
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 12px;
+
+  cursor: pointer;
+
+  font-family: "Inter", sans-serif;
+
+  transition:
+    background 150ms ease,
+    transform 100ms ease,
+    opacity 150ms ease;
+}
+
+
+.review-action-button:active {
+  transform: scale(0.99);
+}
+
+
+/* =========================================
+   DISCARD
+   ========================================= */
+
+.review-discard {
+  background: #121414;
+
+  border-color: #414751;
+
+  color: #ffb4ab;
+}
+
+
+.review-discard:hover {
+  background: rgba(147, 0, 10, 0.1);
+}
+
+
+.review-discard:active {
+  background: rgba(147, 0, 10, 0.2);
+}
+
+
+/* =========================================
+   PROCEED
+   ========================================= */
+
+.review-proceed {
+  background: #1a6fbf;
+
+  border-color: #1a6fbf;
+
+  color: #eaf1ff;
+}
+
+
+.review-proceed:hover {
+  opacity: 0.85;
+}
+
+
+.review-proceed:active {
+  background: #a3c9ff;
+  color: #00315c;
+}
+
+
+/* =========================================
+   ACTION CONTENT
+   ========================================= */
+
+.review-action-icon {
+  font-size: 36px;
+
+  transition: transform 100ms ease;
+}
+
+
+.review-action-button:active .review-action-icon {
+  transform: scale(0.9);
+}
+
+
+.review-action-label {
+  font-family: "Space Grotesk", sans-serif;
+
+  font-size: 18px;
+
+  line-height: 28px;
+
+  font-weight: 500;
+
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+}
+
+
+/* =========================================
+   MOBILE
+   ========================================= */
+
+@media (max-width: 767px) {
+
+  .review-header-bar {
+    height: 60px;
+
+    padding: 0 12px;
+  }
+
+
+  .review-brand h1 {
+    font-size: 18px;
+  }
+
+
+  .review-main {
+    padding: 12px;
+
+    gap: 12px;
+
+    height: calc(100dvh - 60px);
+  }
+
+
+  .review-viewport-header {
+    height: 38px;
+
+    padding: 0 12px;
+  }
+
+
+  .review-status {
+    font-size: 10px;
+
+    letter-spacing: 0.06em;
+  }
+
+
+  .review-image-area {
+    padding: 12px;
+  }
+
+
+  .review-reticle-tl {
+    top: 12px;
+    left: 12px;
+  }
+
+
+  .review-reticle-tr {
+    top: 12px;
+    right: 12px;
+  }
+
+
+  .review-reticle-bl {
+    bottom: 12px;
+    left: 12px;
+  }
+
+
+  .review-reticle-br {
+    bottom: 12px;
+    right: 12px;
+  }
+
+
+  .review-actions {
+    height: 88px;
+
+    gap: 12px;
+  }
+
+
+  .review-action-button {
+    flex-direction: column;
+
+    gap: 4px;
+  }
+
+
+  .review-action-icon {
+    font-size: 30px;
+  }
+
+
+  .review-action-label {
+    font-size: 13px;
+
+    line-height: 18px;
+
+    letter-spacing: 0.06em;
+  }
+
+}
+
+
+/* =========================================
+   SMALL MOBILE
+   ========================================= */
+
+@media (max-width: 380px) {
+
+  .review-main {
+    padding: 8px;
+
+    gap: 8px;
+  }
+
+
+  .review-actions {
+    height: 80px;
+
+    gap: 8px;
+  }
+
+
+  .review-action-icon {
+    font-size: 28px;
+  }
+
+
+  .review-action-label {
+    font-size: 12px;
+  }
+
+}
+
+
+/* =========================================
+   DESKTOP
+   ========================================= */
+
+@media (min-width: 768px) {
+
+  .review-header-bar {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+
+  .review-main {
+    padding: 40px;
+
+    gap: 24px;
+  }
+
+
+  .review-actions {
+    height: 128px;
+
+    gap: 24px;
+  }
+
+
+  .review-action-button {
+    flex-direction: row;
+
+    gap: 16px;
+  }
+
+
+  .review-action-icon {
+    font-size: 48px;
+  }
+
+
+  .review-action-label {
+    font-size: 20px;
+  }
+
+}
