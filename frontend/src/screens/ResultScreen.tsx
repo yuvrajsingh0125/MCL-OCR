@@ -10,6 +10,7 @@ const FIELD_LABELS: Record<string, string> = {
   subject: 'Subject',
   summary: 'Summary',
   department: 'Department',
+  category: 'Category',
   sender_name: 'Sender',
   sender_contact: 'Contact',
   receiver: 'Receiver',

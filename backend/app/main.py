@@ -9,6 +9,13 @@ from contextlib import asynccontextmanager
 import logging
 import asyncio
 import httpx
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+KEEP_ALIVE_URL = os.getenv("KEEP_ALIVE_URL")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +32,8 @@ async def keep_alive():
     while True:
         try:
             async with httpx.AsyncClient() as client:
-                await client.get("https://mcl-ocr.onrender.com/health", timeout=10)
+                if KEEP_ALIVE_URL:
+                    await client.get(f"{KEEP_ALIVE_URL}/health", timeout=10)
                 logger.info("Keep-alive ping sent")
         except Exception as e:
             logger.warning(f"Keep-alive ping failed: {e}")
@@ -40,11 +48,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://mcl-ocr.vercel.app",
-        "https://mcl-ocr-git-main-yuvrajsingh0125.vercel.app",
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

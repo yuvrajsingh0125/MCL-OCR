@@ -15,6 +15,7 @@ def get_history():
             "subject": row.get("subject"),
             "summary": row.get("summary"),
             "department": row.get("department"),
+            "category": row.get("category"),
             "sender_name": row.get("sender_name"),
             "sender_contact": row.get("sender_contact"),
             "receiver": row.get("receiver"),
