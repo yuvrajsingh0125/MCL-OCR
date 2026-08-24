@@ -1,59 +1,37 @@
-from anthropic.types import completion_create_params
-from dotenv import load_dotenv
 import os
-try:
-    from supabase import create_client, Client
-except ImportError:
-    create_client = None
-    Client = None
-try:
-    import anthropic
-except ImportError:
-    anthropic = None
-try:
-    from google import genai
-except ImportError:
-    genai = None
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# ==========================
+# Mistral OCR
+# ==========================
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-gemini_client = None
-if genai and GEMINI_API_KEY:
-    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+try:
+    from mistralai.client import Mistral
+    mistral_client = Mistral(api_key=MISTRAL_API_KEY) if MISTRAL_API_KEY else None
+except ImportError:
+    mistral_client = None
 
 # ==========================
 # Anthropic Claude
 # ==========================
-
-
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-anthropic_client = None
-if anthropic and ANTHROPIC_API_KEY:
-    anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+try:
+    import anthropic
+    anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+except ImportError:
+    anthropic_client = None
 
 # ==========================
-# Supabase
+# Google Apps Script Ward Sheets
 # ==========================
+SHEETS_WARD_WEBHOOK_URL = os.getenv("SHEETS_WARD_WEBHOOK_URL")
+SHEETS_WARD_SECRET = os.getenv("SHEETS_WARD_SECRET")
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173")
 
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-supabase_client=None
-if create_client and SUPABASE_URL and SUPABASE_KEY:
-    supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# ==========================
-# Google Sheets & Drive
-# ==========================
-
-GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
-GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
-
-# ==========================
-# Google Apps Script Sheets
-# ==========================
-SHEETS_WEBHOOK_URL = os.getenv("SHEETS_WEBHOOK_URL")
-SHEETS_SECRET = os.getenv("SHEETS_SECRET")
+# Execution Limits
+MAX_PDF_PAGES_LIMIT = 100

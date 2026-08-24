@@ -1,50 +1,22 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.health import router as health_router
-from app.routes.upload import router as upload_router
-from app.routes.history import router as history_router
-from app.config import SHEETS_WEBHOOK_URL, SHEETS_SECRET
-from app.services.sheets_service import init_sheets
-from contextlib import asynccontextmanager
-import logging
-import asyncio
-import httpx
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-
-KEEP_ALIVE_URL = os.getenv("KEEP_ALIVE_URL")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-
-logger = logging.getLogger(__name__)
-
-if SHEETS_WEBHOOK_URL and SHEETS_SECRET:
-    init_sheets(SHEETS_WEBHOOK_URL, SHEETS_SECRET)
-
+from app.routes.upload_ward import router as upload_ward_router
+from app.routes.history_ward import router as history_ward_router
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
+app = FastAPI()
 
-
-async def keep_alive():
-    await asyncio.sleep(60)  # wait 1 min after startup before first ping
-    while True:
-        try:
-            async with httpx.AsyncClient() as client:
-                if KEEP_ALIVE_URL:
-                    await client.get(f"{KEEP_ALIVE_URL}/health", timeout=10)
-                logger.info("Keep-alive ping sent")
-        except Exception as e:
-            logger.warning(f"Keep-alive ping failed: {e}")
-        await asyncio.sleep(600)  # wait 10 minutes before next ping
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    asyncio.create_task(keep_alive())
-    yield
-
-
-app = FastAPI(lifespan=lifespan)
+# Parse CORS origins from environment variable
+cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173")
+CORS_ORIGINS = [origin.strip() for origin in cors_origins_str.split(",") if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
@@ -55,5 +27,5 @@ app.add_middleware(
 )
 
 app.include_router(health_router)
-app.include_router(upload_router)
-app.include_router(history_router)
+app.include_router(upload_ward_router)
+app.include_router(history_ward_router)

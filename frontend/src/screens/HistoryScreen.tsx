@@ -1,61 +1,26 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from "react";
 
 interface HistoryItem {
-  id: string;
-  serial_number?: string | null;
+  submission_id: string;
+  ward: string;
+  rows_written: number;
+  columns: string[];
+  rows: Record<string, string | null>[];
   created_at: string;
-  llm_result: Record<string, string | null>;
-  ocr_text: string;
-}
-
-function ClampedText({ text }: { text: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [clamped, setClamped] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  const checkClamp = useCallback(() => {
-    if (ref.current) {
-      setClamped(ref.current.scrollHeight > ref.current.clientHeight + 1);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkClamp();
-  }, [text, checkClamp]);
-
-  return (
-    <>
-      <span
-        ref={ref}
-        className={`card-subject text-clamp${expanded ? ' expanded' : ''}`}
-        style={{ marginTop: '4px' }}
-      >
-        {text}
-      </span>
-      {(clamped || expanded) && (
-        <button
-          className="read-more-btn"
-          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-        >
-          {expanded ? 'Read less' : 'Read more'}
-        </button>
-      )}
-    </>
-  );
+  status: string;
 }
 
 export default function HistoryScreen() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchHistory() {
       try {
         const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-        const res = await fetch(`${apiUrl}/history/`);
+        const res = await fetch(`${apiUrl}/history-ward/`);
         if (!res.ok) throw new Error("Failed to load history");
         const data = await res.json();
         setHistory(data);
@@ -65,147 +30,219 @@ export default function HistoryScreen() {
         setLoading(false);
       }
     }
-    
     fetchHistory();
   }, []);
 
   const formatDate = (isoString: string) => {
-    if (!isoString) return 'UNKNOWN DATE';
+    if (!isoString) return "UNKNOWN DATE";
     try {
       const d = new Date(isoString);
-      return d.toLocaleString('en-IN', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric', 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      }).toUpperCase().replace(',', ' —');
+      return d.toLocaleString("en-IN", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
     } catch {
       return isoString;
     }
   };
 
-  // const getCardType = (item: HistoryItem) => {
-  //   const dept = item.llm_result.department;
-  //   if (!dept) return "DOCUMENT";
-  //   if (dept.toLowerCase().includes("complaint") || dept.toLowerCase().includes("b&r") || dept.toLowerCase().includes("health")) return "COMPLAINT CARD";
-  //   return "DOCUMENT";
-  // };
+  const toggleExpand = (id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
   return (
-    <>
-      <div className="screen-head">
+    <div style={{ maxWidth: "800px", margin: "auto", padding: "16px" }}>
+      <div className="screen-head" style={{ marginBottom: "24px" }}>
         <div>
-          <p className="eyebrow">ARCHIVED DOCUMENTS</p>
-          <h1>LISTS</h1>
+          <p className="eyebrow">Digitization Archive</p>
+          <h1>Scan History</h1>
         </div>
-        <span className="num subtle">LATEST {history.length} ENTRIES</span>
+        <span className="num subtle" style={{ fontSize: "14px", color: "var(--muted)" }}>
+          {history.length} Scan{history.length !== 1 ? "s" : ""} Total
+        </span>
       </div>
-      
-      {loading && <p>Loading history...</p>}
-      {error && <p style={{color: 'var(--danger)'}}>Error: {error}</p>}
-      
+
+      {loading && (
+        <div style={{ display: "grid", placeItems: "center", minHeight: "40vh" }}>
+          <div className="process-ring"></div>
+        </div>
+      )}
+
+      {error && (
+        <div
+          style={{
+            padding: "16px",
+            background: "rgba(255, 89, 89, 0.1)",
+            color: "#e74c3c",
+            borderRadius: "12px",
+            border: "1px solid rgba(231, 76, 60, 0.3)",
+            marginBottom: "24px",
+            textAlign: "center",
+          }}
+        >
+          Error loading history: {error}
+        </div>
+      )}
+
       {!loading && !error && history.length === 0 && (
-        <div style={{
-          display: 'flex', flexDirection: 'column', alignItems: 'center', 
-          justifyContent: 'center', minHeight: '40vh', color: 'var(--muted)',
-          textAlign: 'center', gap: '16px'
-        }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "40vh",
+            color: "var(--muted)",
+            textAlign: "center",
+            gap: "16px",
+          }}
+        >
           <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.5">
-            <path d="M21 8v13H3V8M1 3h22v5H1zM10 12h4" />
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="9" y1="9" x2="15" y2="9" />
+            <line x1="9" y1="13" x2="15" y2="13" />
+            <line x1="9" y1="17" x2="13" y2="17" />
           </svg>
           <div>
-            <p style={{margin: 0, fontSize: '18px', fontWeight: 600, color: 'var(--fg-2)'}}>Nothing to show here</p>
-            <p style={{margin: '8px 0 0', fontSize: '14px'}}>Processed documents will appear in your archive.</p>
+            <p style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: "var(--fg-2)" }}>
+              No scans yet
+            </p>
+            <p style={{ margin: "8px 0 0", fontSize: "14px" }}>
+              Scan a ward document register to see history logs here.
+            </p>
           </div>
         </div>
       )}
 
-      <div className="history-grid" id="history-grid">
-        {history.map((item) => (
-          <article key={item.id} className="history-card">
-            <div className="card-header">
-              <span className="card-time">{formatDate(item.created_at)}</span>
-              {item.serial_number && (
-                <span className="card-type">{item.serial_number}</span>
-              )}
-            </div>
-            
-            <div className="card-field">
-              <label>SUBJECT</label>
-              <ClampedText text={item.llm_result.subject || '—'} />
-            </div>
-
-            <div className="card-field">
-              <label>SENDER</label>
-              <ClampedText text={item.llm_result.sender_name || '—'} />
-            </div>
-            
-            <button 
-              className="btn btn-secondary" 
-              onClick={() => setSelectedItem(item)}
+      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+        {history.map((item) => {
+          const isExpanded = expandedId === item.submission_id;
+          return (
+            <div
+              key={item.submission_id}
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: "12px",
+                overflow: "hidden",
+                background: "var(--bg)",
+                transition: "box-shadow 0.2s ease",
+                boxShadow: isExpanded ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
+              }}
             >
-              VIEW MORE
-            </button>
-          </article>
-        ))}
-      </div>
-
-      {/* Modal for View More */}
-      {selectedItem && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 50, 
-          background: 'color-mix(in oklab, var(--bg) 80%, transparent)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex', flexDirection: 'column'
-        }}>
-          <div style={{
-            background: 'var(--bg)', flex: 1, margin: '40px auto 120px', 
-            maxWidth: '800px', width: 'calc(100% - 40px)',
-            borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
-            display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            boxShadow: 'var(--elev-raised)'
-          }}>
-            <div style={{
-              padding: '20px', borderBottom: '1px solid var(--border)',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'start'
-            }}>
-              <div>
-                <h2 style={{margin: '0 0 6px', fontSize: '18px'}}>Document Details</h2>
-                {selectedItem.serial_number && (
-                  <span className="card-type">{selectedItem.serial_number}</span>
-                )}
-              </div>
-              <button 
-                onClick={() => setSelectedItem(null)}
+              {/* Card Header (Tappable) */}
+              <div
+                onClick={() => toggleExpand(item.submission_id)}
                 style={{
-                  background: 'transparent', border: 'none', color: 'var(--fg)',
-                  cursor: 'pointer', padding: '4px', flexShrink: 0
+                  padding: "16px",
+                  cursor: "pointer",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  background: isExpanded ? "rgba(255,255,255,0.02)" : "transparent",
+                  borderBottom: isExpanded ? "1px solid var(--border)" : "none",
                 }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </button>
-            </div>
-            
-            <div style={{padding: '20px', overflowY: 'auto', flex: 1}}>
-              <div className="result-grid" style={{marginTop: 0}}>
-                {Object.entries(selectedItem.llm_result).filter(([k]) => k !== 'text').map(([key, value]) => {
-                  const isSubject = key === 'subject' || key === 'summary';
-                  return (
-                    <div key={key} className={`result-field ${isSubject ? 'subject' : ''}`}>
-                      <span className="result-label">{key.replace('_', ' ').toUpperCase()}</span>
-                      <span className="result-value">{value ?? '—'}</span>
-                    </div>
-                  );
-                })}
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: "var(--fg)" }}>
+                    Ward {item.ward}
+                  </h3>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                    {formatDate(item.created_at)} &bull; {item.rows_written} record{item.rows_written !== 1 ? "s" : ""} synced
+                  </p>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      background: "#d1fae5",
+                      color: "#065f46",
+                      border: "1px solid #10b981",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {item.status.toUpperCase()}
+                  </span>
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    style={{
+                      transform: isExpanded ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s ease",
+                      color: "var(--muted)",
+                    }}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
               </div>
+
+              {/* Expanded Content */}
+              {isExpanded && (
+                <div style={{ padding: "16px", background: "rgba(255,255,255,0.01)" }}>
+                  <div style={{ marginBottom: "8px", fontSize: "12px", color: "var(--muted)" }}>
+                    Submission ID: <code style={{ fontFamily: "monospace" }}>{item.submission_id}</code>
+                  </div>
+                  <div style={{ overflowX: "auto", border: "1px solid var(--border)", borderRadius: "8px", background: "var(--bg)" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+                      <thead>
+                        <tr style={{ background: "var(--border)", borderBottom: "1px solid var(--border)" }}>
+                          {item.columns.map((col) => (
+                            <th
+                              key={col}
+                              style={{
+                                padding: "10px 14px",
+                                fontWeight: 600,
+                                color: "var(--fg)",
+                                borderBottom: "1px solid var(--border)",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.rows.map((row, idx) => (
+                          <tr
+                            key={idx}
+                            style={{
+                              borderBottom: idx === item.rows.length - 1 ? "none" : "1px solid var(--border)",
+                              background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                            }}
+                          >
+                            {item.columns.map((col) => (
+                              <td
+                                key={col}
+                                style={{
+                                  padding: "10px 14px",
+                                  color: "var(--fg-2)",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {row[col] ?? "—"}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-      )}
-    </>
+          );
+        })}
+      </div>
+    </div>
   );
 }

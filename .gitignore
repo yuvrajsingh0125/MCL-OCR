@@ -1,5 +1,6 @@
 # Python
 backend/.venv/
+backend/venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -25,5 +26,6 @@ frontend/dist/
 backend/uploads/
 backend/processed/
 backend/output/
+backend/data/
 
 docs/mcl_ui_prompt.md
