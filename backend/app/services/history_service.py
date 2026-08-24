@@ -43,7 +43,10 @@ def get_history(limit: int = 20) -> list:
     
     try:
         with open(HISTORY_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError:
+                return []
             if not isinstance(data, list):
                 return []
             # Return last N entries, reversed

@@ -340,7 +340,7 @@ class ProcessChunkRequest(BaseModel):
     type: str  # "pdf" or "image"
     filename: str
     original_name: str
-    current_ward: str = None
+    current_ward: str | None = None
 
 
 class FinalizeRequest(BaseModel):
