@@ -1,5 +1,6 @@
 # Python
 backend/.venv/
+backend/venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -22,8 +23,9 @@ frontend/dist/
 .idea/
 
 # Generated images and outputs
-backend/uploads/*
-backend/processed/*
-backend/output/*
+backend/uploads/
+backend/processed/
+backend/output/
+backend/data/
 
 docs/mcl_ui_prompt.md

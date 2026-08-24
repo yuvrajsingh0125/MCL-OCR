@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">MCL OCR</string>
-    <string name="title_activity_main">MCL OCR</string>
-    <string name="package_name">com.mcl.ocr</string>
-    <string name="custom_url_scheme">com.mcl.ocr</string>
-</resources>

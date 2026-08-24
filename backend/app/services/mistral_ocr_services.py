@@ -29,23 +29,31 @@ def mistral_process_ocr(file_path: Path)-> dict:
             f"Provide OCR Path is not a file: {source}"
         )
 
-    MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png"}
-    mime_type = MIME_TYPES.get(source.suffix.lower(), "image/jpeg")
-    
     def encode_file(file_path: Path) -> str:
         with file_path.open("rb") as image_file:
             return base64.b64encode(image_file.read()).decode("utf-8")
 
     base64_file = encode_file(source)
     
+    suffix = source.suffix.lower()
+    if suffix == ".pdf":
+        mime_type = "application/pdf"
+        doc_payload = {
+            "type": "document_url",
+            "document_url": f"data:{mime_type};base64,{base64_file}"
+        }
+    else:
+        MIME_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
+        mime_type = MIME_TYPES.get(suffix, "image/jpeg")
+        doc_payload = {
+            "type": "image_url",
+            "image_url": f"data:{mime_type};base64,{base64_file}"
+        }
 
     ocr_response = client.ocr.process(
-        document={
-        "type": "image_url",
-        "image_url": f"data:{mime_type};base64,{base64_file}"
-        },
+        document=doc_payload,
         model="mistral-ocr-latest",
-    #     document_annotation_format=ResponseFormat(
+    )#     document_annotation_format=ResponseFormat(
 	# 	type="json_schema",
 	# 	json_schema=JSONSchema(
 	# 		name="response_schema",
@@ -95,11 +103,15 @@ def mistral_process_ocr(file_path: Path)-> dict:
 	# 	),
 	# ),
 	# include_blocks=True
-)
+	# )
 
-    ocr_output = ocr_response.pages[0].markdown
+    pages_markdown = []
+    for page_idx, page in enumerate(ocr_response.pages):
+        pages_markdown.append(f"===== PAGE {page_idx + 1} =====\n{page.markdown}")
+        
+    combined_markdown = "\n\n".join(pages_markdown)
     logger = logging.getLogger(__name__)
-    logger.info(f"Mistral OCR markdown output:\n{ocr_output}")
+    logger.info(f"Mistral OCR combined output:\n{combined_markdown}")
     return {
-        "text": ocr_output
+        "text": combined_markdown
     }

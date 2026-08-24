@@ -31,7 +31,7 @@ export default function TopNav() {
           <span className="brand-mark">
             <img src={mclLogo} alt="MCL Logo" width="36" height="36" style={{ objectFit: 'contain' }} />
           </span>
-          <span>MCL DAAK<small>Municipal Corporation Ludhiana</small></span>
+          <span>MCL Ward Scanner<small>Municipal Corporation Ludhiana</small></span>
         </div>
         <div className="topnav-actions" style={{ marginLeft: 'auto' }}>
           <button type="button" className="theme-toggle" aria-label="Toggle theme" onClick={toggleTheme} style={{ 

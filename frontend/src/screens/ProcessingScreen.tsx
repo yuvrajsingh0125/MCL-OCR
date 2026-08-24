@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 export type ProcessingStageStatus =
   | "pending"
@@ -25,52 +25,20 @@ interface ProcessingScreenProps {
   session?: ProcessingSession;
   onAbort?: () => void;
   error?: string | null;
+  progressMessage?: string | null;
 }
 
 interface HistoryItem {
-  id: string;
-  serial_number?: string | null;
+  submission_id: string;
+  ward: string;
+  rows_written: number;
+  columns: string[];
+  rows: Record<string, string | null>[];
   created_at: string;
-  llm_result: Record<string, string | null>;
-  ocr_text: string;
+  status: string;
 }
 
-function ClampedResultValue({ value }: { value: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [clamped, setClamped] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-
-  const checkClamp = useCallback(() => {
-    if (ref.current) {
-      setClamped(ref.current.scrollHeight > ref.current.clientHeight + 1);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkClamp();
-  }, [value, checkClamp]);
-
-  return (
-    <>
-      <span
-        ref={ref}
-        className={`result-value text-clamp${expanded ? ' expanded' : ''}`}
-      >
-        {value}
-      </span>
-      {(clamped || expanded) && (
-        <button
-          className="read-more-btn"
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? 'Read less' : 'Read more'}
-        </button>
-      )}
-    </>
-  );
-}
-
-export default function ProcessingScreen({ stages, error }: ProcessingScreenProps) {
+export default function ProcessingScreen({ stages, error, progressMessage }: ProcessingScreenProps) {
   const [latestDoc, setLatestDoc] = useState<HistoryItem | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -85,7 +53,7 @@ export default function ProcessingScreen({ stages, error }: ProcessingScreenProp
     if (isIdle) {
       setLoading(true);
       const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-      fetch(`${apiUrl}/history/`)
+      fetch(`${apiUrl}/history-ward/`)
         .then(res => res.json())
         .then(data => {
           if (data && data.length > 0) {
@@ -94,7 +62,7 @@ export default function ProcessingScreen({ stages, error }: ProcessingScreenProp
             setLatestDoc(null);
           }
         })
-        .catch(err => console.error("Failed to load latest document:", err))
+        .catch(err => console.error("Failed to load latest ward document:", err))
         .finally(() => setLoading(false));
     }
   }, [isIdle]);
@@ -121,8 +89,8 @@ export default function ProcessingScreen({ stages, error }: ProcessingScreenProp
             <path d="m3 15 2 2 4-4" />
           </svg>
           <div>
-            <p style={{margin: 0, fontSize: '18px', fontWeight: 600, color: 'var(--fg-2)'}}>Nothing to show here</p>
-            <p style={{margin: '8px 0 0', fontSize: '14px'}}>Scan a document to begin.</p>
+            <p style={{margin: 0, fontSize: '18px', fontWeight: 600, color: 'var(--fg-2)'}}>No data digitized yet</p>
+            <p style={{margin: '8px 0 0', fontSize: '14px'}}>Scan a ward document register to begin.</p>
           </div>
         </div>
       );
@@ -132,31 +100,30 @@ export default function ProcessingScreen({ stages, error }: ProcessingScreenProp
       <div className="result-shell" style={{ maxWidth: '800px', margin: 'auto' }}>
         <div className="screen-head">
           <div>
-            <p className="eyebrow">LATEST DOCUMENT</p>
-            <h1 style={{fontSize: '32px'}}>QUEUE</h1>
+            <p className="eyebrow">LATEST WARD SCAN</p>
+            <h1 style={{fontSize: '32px'}}>Ward {latestDoc.ward}</h1>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-            <span className="status">ARCHIVED</span>
-            {latestDoc.serial_number && (
-              <span className="card-type">{latestDoc.serial_number}</span>
-            )}
+            <span className="status">COMPLETED</span>
+            <span className="card-type" style={{ fontSize: '11px', color: 'var(--muted)' }}>
+              {new Date(latestDoc.created_at).toLocaleString()}
+            </span>
           </div>
         </div>
 
         <div className="result-grid" style={{marginTop: '28px'}}>
-          {Object.entries(latestDoc.llm_result).filter(([k]) => k !== 'text').map(([key, value]) => {
-            const isLongField = key === 'subject' || key === 'summary';
-            return (
-              <div key={key} className={`result-field ${isLongField ? 'subject' : ''}`}>
-                <span className="result-label">{key.replace('_', ' ').toUpperCase()}</span>
-                {isLongField ? (
-                  <ClampedResultValue value={value ?? '—'} />
-                ) : (
-                  <span className="result-value">{value ?? '—'}</span>
-                )}
-              </div>
-            );
-          })}
+          <div className="result-field">
+            <span className="result-label">WARD</span>
+            <span className="result-value">Ward {latestDoc.ward}</span>
+          </div>
+          <div className="result-field">
+            <span className="result-label">RECORDS SYNCED</span>
+            <span className="result-value">{latestDoc.rows_written} records</span>
+          </div>
+          <div className="result-field subject">
+            <span className="result-label">COLUMNS EXTRACTED</span>
+            <span className="result-value">{latestDoc.columns.join(", ")}</span>
+          </div>
         </div>
       </div>
     );
@@ -189,9 +156,28 @@ export default function ProcessingScreen({ stages, error }: ProcessingScreenProp
           {hasError ? "ERROR" : isComplete ? "COMPLETE" : "PROCESSING"}
         </strong>
         <div className="subtle" id="processing-subtle">
-          {hasError ? "An error occurred" : isComplete ? "Structured fields ready for review" : "Preparing document layers"}
+          {hasError ? "An error occurred" : isComplete ? "Ward records digitized successfully" : "Running extraction pipeline..."}
         </div>
       </div>
+
+      {progressMessage && (
+        <div style={{
+          margin: "12px auto 20px",
+          padding: "10px 14px",
+          borderRadius: "8px",
+          background: "var(--border)",
+          color: "var(--fg)",
+          fontSize: "13px",
+          fontFamily: "monospace",
+          textAlign: "center",
+          border: "1px solid var(--border)",
+          maxWidth: "480px",
+          width: "100%"
+        }}>
+          {progressMessage}
+        </div>
+      )}
+
       <div className="pipeline" id="pipeline">
         {stages.map((stage, index) => {
           const isDone = stage.status === "complete";

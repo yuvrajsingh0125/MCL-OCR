@@ -1,171 +1,191 @@
-# MCL Patr — Context Handoff (August 17, 2026)
+# MCL Patr — Context Handoff (August 19, 2026)
 
-## What is this?
-MCL Patr is a document digitization system for Municipal Corporation Ludhiana (MCL). Extracts and structures text from multilingual municipal correspondence (English, Hindi, Punjabi/Gurmukhi).
+## What this is
+MCL Patr is a municipal document digitization system for Municipal Corporation Ludhiana. It extracts structured data from multilingual correspondence in English, Hindi, and Punjabi/Gurmukhi, then stores the result in Supabase and syncs it to Google Sheets.
 
-Yuvraj is learning-by-doing — explain what/why during coding, never hand solutions unless asked. Direct, no hedging, first-principles reasoning. Minimal unsolicited recommendations. If wrong, say so plainly.
+Yuvraj prefers direct, first-principles explanations, minimal hedging, and learning-by-doing. If the tone shifts to more directive output under deadline pressure, follow that shift.
 
-## Repository
-- https://github.com/yuvrajsingh0125/MCL-OCR.git (public)
-- `main` — merged, deployed, latest code lives here
-- `uv-dev` — Yuvraj: backend, LLM, routing, UI, persistence
-- `frontend` — Arshdeep (AD): OpenCV preprocessing, OCR engine layer, frontend camera, screens
-- Arshdeep's files are off-limits during refactors; changes to shared interfaces need coordination
-- Git workflow: Yuvraj pushes to `uv-dev`; Arshdeep does `git fetch origin` + `git checkout origin/uv-dev -- .` before her PR
+## Repository state
+- `origin` → https://github.com/yuvrajsingh0125/MCL-OCR.git (dev/testing repository)
+- `daak` → https://github.com/suchitnagarnigam-star/mcl-daak.git (production counterpart)
+- Current local branch: `uv-dev`
+- `uv-dev` is the active working branch for backend, LLM, routing, UI, and persistence changes
+- `frontend` is still the branch for OpenCV preprocessing and camera-heavy frontend work
+- `daak/duv-dev` and `daak/main` are currently aligned to the current `uv-dev` commit
+- `origin` and `daak` should be treated as separate remotes with separate deployment targets
 
-## Live Deployments
-- Frontend: https://mcl-ocr.vercel.app (Vercel, auto-deploy on push to main)
-- Backend: https://mcl-ocr.onrender.com (Render free tier — ~50s cold start)
+## Current deployment map
+- Dev frontend: https://mcl-ocr.vercel.app
+- Dev backend: https://mcl-ocr.onrender.com
+- Prod frontend: https://mcl-daak.vercel.app
+- Prod backend: https://mcl-daak.onrender.com
+- `.env.production` is not committed; environment values live in Vercel/Render dashboards
 
-## Current Stack
+## Current pipeline
+```text
+React 19 + Vite + TypeScript
+    ↓
+FastAPI POST /upload/ and GET /history/
+    ↓
+Save upload temporarily to uploads/
+    ↓
+OpenCV preprocessing → processed/
+    ↓
+Mistral OCR per image
+    ↓
+Delete temp files from disk immediately
+    ↓
+Combine OCR text in memory with page markers
+    ↓
+Claude single pass on combined document text
+    ↓
+Reject empty OCR, empty LLM output, or missing subject/summary
+    ↓
+Supabase insert → serial number + pending status
+    ↓
+Google Sheets webhook sync
+    ↓
+Supabase status update to complete
+    ↓
+Return JSON response
 ```
-React 19 + Vite + TS
-    ↓
-FastAPI (POST /upload/, GET /history/)
-    ↓
-Save image to disk temporarily (uploads/)
-    ↓
-OpenCV preprocessing → writes to processed/
-    ↓
-Mistral OCR (per image)
-    ↓
-DELETE both files from disk immediately
-    ↓
-Combine OCR with page markers (in memory only)
-    ↓
-Claude — single call on combined text
-    ↓
-Supabase — serial number generation + document insert
-    ↓
-Google Sheets — webhook push (permanent archive)
-    ↓
-Return JSON response (no files written to disk)
-```
 
-**The system is fully stateless on disk after each request.** No `output/` JSON files are written. No images persist. Supabase is the sole data store.
+**The system is stateless on disk after each request.** No result JSON is written. No uploaded images persist after OCR. Supabase is the source of truth for stored records.
 
-## File Structure (current, real)
-```
+## Current backend shape
+```text
 backend/app/
-  main.py                         # FastAPI init, CORS, routers: health + upload + history
-  config.py                       # Anthropic, Gemini (optional), Supabase client init
+  main.py                       # FastAPI init, CORS, router registration, keep-alive
+  config.py                     # Anthropic, Mistral, Supabase client setup
   routes/
-    upload.py                     # POST /upload/ — multi-image pipeline orchestration
-    history.py                    # GET /history/ — queries Supabase top 10, newest-first
+    upload.py                   # POST /upload/ orchestration and gates
+    history.py                  # GET /history/ from Supabase
     health.py
   services/
-    mistral_ocr_services.py       # Mistral OCR API, returns pages[0].markdown
-    claude_service.py             # Structured extraction, 8 fields, 22 MCL departments
-    opencv_services.py            # Preprocessing: blur, sharpen, denoise (temp files)
-    supabase_service.py           # insert_data() → serial_number; get_recent_documents()
-    sheets_service.py             # push_to_sheets(llm_result, filename, serial_number)
-    gemini_service.py             # Available, not in main pipeline
+    mistral_ocr_services.py     # OCR API integration
+    claude_service.py           # 9-field extraction incl. category
+    opencv_services.py          # image preprocessing before OCR
+    supabase_service.py         # serial numbers, insert, history fetch, status updates
+    sheets_service.py           # Google Sheets webhook push
+    gemini_service.py           # available but not on the main path
   utils/
-    file_utils.py                 # save_uploaded_file(), delete_file(); save_result_json() (dead)
-  schemas/                        # EMPTY — no Pydantic models yet
+    file_utils.py               # save/delete helpers; save_result_json() is dead
+  schemas/
+    # still empty
+```
 
+## Current frontend shape
+```text
 frontend/src/
-  App.tsx                         # Global TopNav header, DockNavigation footer, screen routing
-  index.css                       # Design system tokens and global styles
+  App.tsx                       # global shell and route state
+  index.css                     # design tokens and global styles
   main.tsx
   components/
-    TopNav.tsx                    # Global header (MCL DAAK)
-    DockNavigation.tsx            # QUEUE | SCAN | LISTS bottom dock
+    TopNav.tsx
+    DockNavigation.tsx
   screens/
-    CameraScreen.tsx              # Live camera + file upload + image review
-    ProcessingScreen.tsx          # Upload/OCR/LLM animated stage tracker
-    ResultScreen.tsx              # Extracted data grid + serial_number badge + raw OCR
-    HistoryScreen.tsx             # Past submissions list (top 10) + detail modal (no OCR)
+    CameraScreen.tsx
+    ProcessingScreen.tsx
+    ResultScreen.tsx
+    HistoryScreen.tsx
 ```
 
-## Extracted Fields (8, all English, null if not found)
+## Extracted fields
+Claude now extracts 9 fields. `subject` and `summary` are required gate fields; if either is missing, the pipeline fails.
+
 ```json
 {
-  "date": "", "subject": "", "summary": "", "department": "",
-  "sender_name": "", "sender_contact": null, "receiver": "", "reference_number": null
+  "date": "",
+  "subject": "",
+  "summary": "",
+  "department": "",
+  "category": "",
+  "sender_name": "",
+  "sender_contact": null,
+  "receiver": "",
+  "reference_number": null
 }
 ```
-`department` matched against hardcoded list of 22 MCL departments in `claude_service.py` — known tech debt.
 
-## Serial Number Format
-```
-MCL/{year}/{sequential_number}
-```
-- Starts at 1001 if no records exist for the current year.
-- Generated by `supabase_service.insert_data()` — queries max existing, increments by 1, inserts row.
-- Table name: `document_submission` (singular — do not rename without changing supabase_service.py).
+- `department` is matched against a hardcoded list of 22 departments in `claude_service.py`
+- `category` is matched against a hardcoded list of 10 categories in `claude_service.py`
+- `category` must flow through `history.py`, `ResultScreen`, and Supabase storage
 
-## API Contracts
+## Categories
+1. Grievance
+2. Service Request
+3. Development & Infrastructure
+4. Financial & Budgetary
+5. Legal & Compliance
+6. Administrative & HR
+7. Licensing & Permits
+8. Public Health & Sanitation
+9. Property & Estate
+10. General Correspondence
+
+## Serial numbers and storage
+- Serial number format: `MCL/{year}/{sequential_number}`
+- Serial numbers start at 1001 if no records exist for the current year
+- `supabase_service.insert_data()` generates the serial number and inserts the row
+- The target table is `document_submission`
+- Status values are `pending`, `complete`, and `failed`
+
+## API contracts
 
 ### POST /upload/
-```
-Body: multipart/form-data, field name: files (list)
-Response: {
-  serial_number, message, submission_id, status,
-  file_count, files[], images[{img_index, filename, ocr_md}], extracted_data
-}
-```
-Images are deleted from disk before response. `images[]` contains only `img_index`, `filename`, `ocr_md` — no file paths.
+- Multipart field: `files`
+- Success response includes `serial_number`, `submission_id`, `status: "complete"`, `file_count`, `files`, `images`, and `extracted_data`
+- `images[]` only contains `img_index`, `filename`, and `ocr_md`
+- Gate failures return 400/422 with `status: "failed"`
 
 ### GET /history/
+- Returns the newest 10 submissions from Supabase
+- Each item includes `id`, `serial_number`, `created_at`, `llm_result`, and placeholder OCR text
+- Source is Supabase only
+
+## Environment variables
+
+### Backend
+```text
+MISTRAL_API_KEY=
+ANTHROPIC_API_KEY=
+SUPABASE_URL=
+SUPABASE_KEY=
+SHEETS_WEBHOOK_URL=
+SHEETS_SECRET=
+KEEP_ALIVE_URL=https://mcl-ocr.onrender.com
+# KEEP_ALIVE_URL=https://mcl-daak.onrender.com
+CORS_ORIGINS=http://localhost:5173,https://mcl-ocr.vercel.app,https://mcl-ocr-git-main-yuvrajsingh0125.vercel.app
+# CORS_ORIGINS=http://localhost:5173,https://mcl-daak.vercel.app,https://mcl-daak-git-duv-dev-shiv99.vercel.app
 ```
-Response: [
-  { id, serial_number, created_at, llm_result, ocr_text: "No raw text available" },
-  ...  // top 10, sorted newest-first
-]
+
+### Frontend
+```text
+VITE_API_URL=https://mcl-ocr.onrender.com
+# VITE_API_URL=https://mcl-daak.onrender.com
 ```
-Source: Supabase only. Empty list if no records.
 
-## What Was Discussed This Session (August 17)
+## Google Sheets
+- Two separate Apps Script deployments exist, one for dev and one for prod
+- Monthly tabs are created automatically
+- The sheet includes serial number, date, subject, summary, department, category, sender, receiver, reference number, filename, and processed timestamp
 
-### Concurrency
-- Yuvraj's original concern was data mixing between concurrent requests — confirmed this is NOT a real risk. Local variables are isolated per function call stack. Each request has its own `image_items`, `llm_result`, `serial_number` etc.
-- Real problem identified: **blocking**. The async route (`upload_images`) calls synchronous service functions (Mistral, Claude, Supabase). This blocks the event loop. While Request A waits for Mistral, Request B cannot start.
-- `push_to_sheets` is the only service that is already properly async.
-- Clarified: this is blocking, NOT deadlock. Deadlock = two tasks waiting on each other forever. Blocking = one task holds the thread while waiting for I/O.
+## Current technical debt
+- Stale import in `config.py` line 1: `from anthropic.types import completion_create_params`
+- `save_result_json()` still exists in `file_utils.py` but is unused
+- Department and category lists are hardcoded in `claude_service.py`
+- The service stack is still synchronous, so request handling blocks the event loop
+- No file type or size validation exists yet on upload
+- Multi-image OCR failure still fails the whole submission
 
-### Two types of work in the pipeline
-- **I/O-bound** (waiting for network): Mistral OCR, Claude, Supabase, Google Sheets → fix with `async/await`
-- **CPU-bound** (actual computation): OpenCV preprocessing → fix with `run_in_executor` (thread pool)
+## Priority order
+1. Async refactor for network and CPU-bound service calls
+2. Upload validation for type and size
+3. Cleanup of dead code and stale imports
+4. Better multi-image failure handling
+5. Schema work in `schemas/`
 
-### Planned concurrency improvements (not yet implemented)
-1. Make Mistral, Claude, Supabase calls truly async using async-compatible clients
-2. Offload OpenCV to thread pool via `asyncio.run_in_executor`
-3. Parallelise multi-image OCR within a single request (currently sequential)
-4. Wrap clients in classes for shared resource management across requests
-
-### Internal keep-alive cron job
-- Decision: replace UptimeRobot dependency with an internal background task
-- Approach: asyncio infinite loop with `await asyncio.sleep()` started at app startup via FastAPI lifespan event
-- Lives in `main.py`
-- Not yet implemented — next step is to see `main.py` contents
-
-### Exception block bug in upload.py (unresolved)
-- `delete_file(saved_path)` and `delete_file(processed_path)` were removed from the except block
-- Bug still exists: if exception occurs before `saved_path` or `processed_path` are assigned, referencing them in the except block crashes
-- Fix: initialise both variables to `None` before the try block, guard deletion with `if saved_path` / `if processed_path`
-- Not yet implemented
-
-## Pending Technical Debt
-- `config.py` line 1: stale unused `from anthropic.types import completion_create_params` import
-- `save_result_json()` still exists in `file_utils.py` — dead code, never called
-- `save_result_json` import removed from `upload.py` (done this session)
-- `department` hardcoded list of 22 MCL departments in `claude_service.py`
-- `pytest` in production `requirements.txt` / Docker image
-- `schemas/` directory is empty — no Pydantic validation models
-- Partial multi-image OCR failure raises hard 500; no partial-success path
-- No file type or file size validation on upload
-
-## Priority Order Agreed
-1. Fix exception block bug in `upload.py` (safe file cleanup)
-2. Internal keep-alive cron job in `main.py`
-3. Make services async (concurrency)
-4. Input validation (file type, size)
-5. Dead code cleanup
-
-## Communication Preferences (Yuvraj)
-- Learning-by-doing — explain what/why, never hand solutions unless explicitly asked
-- Direct — say when something is wrong, no hedging
-- Minimal unsolicited recommendations
-- Only give code when asked
-- Under deadline pressure, will ask for more directive output — follow that shift when stated
+## Communication preferences
+- Explain what and why
+- Be direct when something is wrong
+- Keep recommendations minimal unless explicitly asked for more
