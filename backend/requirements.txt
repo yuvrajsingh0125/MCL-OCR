@@ -14,3 +14,4 @@ anthropic
 google-genai
 httpx
 pytest
+pypdf
