@@ -1,79 +1,66 @@
-# MCL Patr
+# MCL Patr (Ward Sanitation Digitization)
 
-MCL Patr is the Municipal Corporation Ludhiana document digitization system. It takes municipal correspondence, runs it through OpenCV preprocessing, Mistral OCR, Claude extraction, Supabase persistence, and Google Sheets sync, then returns structured data to the frontend.
+MCL Patr is the Municipal Corporation Ludhiana document digitization system. This branch (`sheets`) is configured to digitize large ward sanitation worker register documents and sync them to a Google Sheets archive.
 
-## Current state
+---
 
-- Current working branch: `uv-dev`
-- Dev remote: `origin` → `yuvrajsingh0125/MCL-OCR`
-- Production remote: `daak` → `suchitnagarnigam-star/mcl-daak`
-- Active OCR path: Mistral OCR only
-- Active storage path: Supabase + Google Sheets
-- The system is stateless on disk after OCR
+## Architecture & Pipeline
 
-## Live deployments
+Due to the size of ward registers (often 10+ pages), the system uses a **stateful chunked multi-request pipeline** to avoid HTTP timeouts and API token rate-limits:
 
-- Frontend dev: https://mcl-ocr.vercel.app
-- Backend dev: https://mcl-ocr.onrender.com
-- Frontend prod: https://mcl-daak.vercel.app
-- Backend prod: https://mcl-daak.onrender.com
+```text
+Upload PDF / Image
+    ↓
+Initialize Session (/upload-ward/initialize/)
+    ↓
+Split PDF into chunks of 5 pages
+    ↓
+Process Chunks sequentially (/upload-ward/process-chunk/)
+  ├── OCR each page in the chunk using Mistral OCR
+  ├── Extract data using Claude (strict 7-column schema)
+  ├── Propagate and lock ward number across chunks (prevents OCR overrides)
+  └── Sync chunk rows to Google Sheets (including a blank separator row at page ends)
+    ↓
+Finalize Session (/upload-ward/finalize/)
+  └── Clean up temporary directories on disk
+```
 
-## Stack
+---
+
+## Standardized 7-Column Schema
+
+All extractions are mapped to a strict 7-column layout (translated to English):
+
+1. **Serial Number** (e.g. `1`, `2`)
+2. **Sanitation Worker Name** (e.g. `Chandrapal`)
+3. **Father/Husband Name** (e.g. `Tara Chand`)
+4. **Employee Beat** (e.g. `New Sant Nagar`)
+5. **Address** (e.g. `House No. 12, Gali No. 3`)
+6. **Employability Status** (e.g. `Permanent`, `Sanctioned`, `DC Rate`, `Outsourced`)
+7. **Mobile Number** (e.g. `9877174834`)
+
+---
+
+## Live Deployments
+
+- **Frontend dev**: https://mcl-ocr.vercel.app
+- **Backend dev**: https://mcl-ocr.onrender.com
+
+---
+
+## Technology Stack
 
 | Layer | Technology | Purpose |
 | --- | --- | --- |
-| Frontend | React 19 + Vite + TypeScript | Scanner UI |
-| Backend | FastAPI + Uvicorn | API and pipeline orchestration |
-| Image processing | OpenCV | Preprocessing |
-| OCR | Mistral OCR | Text extraction |
-| Extraction | Anthropic Claude | Structured fields |
-| Persistence | Supabase | Serial numbers and document storage |
-| Archival | Google Sheets webhook | Long-term record archive |
-| Deployment | Render + Vercel | Hosting |
+| **Frontend** | React 19 + Vite + TypeScript | Premium Glassmorphic Digitizer UI |
+| **Backend** | FastAPI + Uvicorn | API and pipeline orchestration |
+| **OCR** | Mistral OCR | Text extraction |
+| **Extraction** | Anthropic Claude | Structured field parsing |
+| **Archival** | Google Sheets webhook | Long-term record archive |
 
-## Pipeline
+---
 
-```text
-Upload images
-    ↓
-Save temporarily to disk
-    ↓
-OpenCV preprocessing
-    ↓
-Mistral OCR per image
-    ↓
-Delete temp files immediately
-    ↓
-Combine OCR text in memory
-    ↓
-Claude extraction
-    ↓
-Supabase insert + serial number
-    ↓
-Google Sheets webhook sync
-    ↓
-Return structured response
-```
-
-## Extracted fields
-
-```json
-{
-  "date": "",
-  "subject": "",
-  "summary": "",
-  "department": "",
-  "category": "",
-  "sender_name": "",
-  "sender_contact": null,
-  "receiver": "",
-  "reference_number": null
-}
-```
-
-`subject` and `summary` are required. `category` is now part of the stored and displayed result.
-
-## Repository layout
+## Repository Layout
 
 ```text
 MCL-OCR/
@@ -82,42 +69,23 @@ MCL-OCR/
 │       ├── main.py
 │       ├── config.py
 │       ├── routes/
+│       │   ├── upload_ward.py     # Chunked PDF endpoints
+│       │   └── history_ward.py    # Local history endpoints
 │       ├── services/
-│       ├── utils/
-│       └── schemas/
+│       │   ├── claude_ward_service.py
+│       │   └── sheets_ward_service.py
+│       └── utils/
+│           └── file_utils.py
 ├── frontend/
 │   └── src/
-│       ├── App.tsx
-│       ├── components/
+│       ├── App.tsx                # Frontend state machine & chunk loop
+│       ├── index.css              # Premium Glassmorphic design styles
 │       └── screens/
+│           ├── CameraScreen.tsx
+│           ├── HistoryScreen.tsx
+│           └── ResultScreen.tsx
 └── docs/
-    ├── context_handoff.md
+    ├── README.md
     ├── PROJECT_CONTEXT.md
-    ├── CODEBASE_REPORT.md
-    ├── DESIGN.md
-    └── mcl_ui_prompt.md
+    └── DESIGN.md
 ```
-
-## Branches
-
-| Branch | Owner | Scope |
-| --- | --- | --- |
-| `main` | Both | Merged/deployed line |
-| `uv-dev` | Yuvraj | Backend, LLM, routing, persistence, UI wiring |
-| `frontend` | Arshdeep | Frontend camera and preprocessing work |
-
-## What's working
-
-- Multi-image upload pipeline
-- Mistral OCR as the active OCR engine
-- Claude extraction with 9 fields
-- Supabase-backed history
-- Google Sheets sync
-- Result screen showing serial number and extracted data
-
-## Next steps
-
-1. Add upload validation.
-2. Decide how partial OCR failures should behave.
-3. Add Pydantic schemas.
-4. Remove stale dead code and imports.
