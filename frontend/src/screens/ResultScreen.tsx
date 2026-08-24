@@ -19,7 +19,7 @@ export default function ResultScreen({ data, onProcessAnother }: ResultScreenPro
     <div className="result-shell" style={{ maxWidth: "800px", margin: "auto", padding: "16px" }}>
       <div className="screen-head" style={{ marginBottom: "24px" }}>
         <div>
-          <p className="eyebrow" style={{ textTransform: "uppercase", tracking: "wider" }}>Ward Scanner Result</p>
+          <p className="eyebrow">Ward Scanner Result</p>
           <h1 style={{ fontSize: "36px", fontWeight: 800, margin: "4px 0" }}>Ward {ward}</h1>
           <span style={{ fontSize: "12px", color: "var(--muted)", fontFamily: "monospace" }}>
             ID: {submission_id}
