@@ -188,7 +188,7 @@ export default function App() {
         };
         processedChunksCount++;
 
-        if (chunkResult.ward && chunkResult.ward !== "Unknown") {
+        if (!runningWard && chunkResult.ward && chunkResult.ward !== "Unknown") {
           runningWard = chunkResult.ward;
         }
         

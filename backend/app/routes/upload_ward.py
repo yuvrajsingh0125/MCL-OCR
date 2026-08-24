@@ -523,7 +523,7 @@ async def process_chunk(req: ProcessChunkRequest):
             columns = extraction.get("columns", [])
             rows = extraction.get("rows", [])
 
-            if ward:
+            if ward and not current_ward:
                 current_ward = ward
 
             if not rows:
