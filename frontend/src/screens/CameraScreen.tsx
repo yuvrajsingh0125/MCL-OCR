@@ -8,6 +8,8 @@ interface CapturedImage {
   id: string;
   blob: Blob;
   previewUrl: string;
+  isPdf?: boolean;
+  name?: string;
 }
 
 interface ImageCaptureLike {
@@ -77,13 +79,13 @@ export default function CameraScreen({ onAccept }: CameraScreenProps) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
-  const addImage = useCallback((blob: Blob) => {
+  const addImage = useCallback((blob: Blob, name?: string) => {
     const previewUrl = URL.createObjectURL(blob);
     setImages((previous) => [
       ...previous,
-      { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, blob, previewUrl },
+      { id: `${Date.now()}-${Math.random().toString(16).slice(2)}`, blob, previewUrl, isPdf: blob.type === "application/pdf", name },
     ]);
-    setUploadNotice("Image added!");
+    setUploadNotice("Document added!");
   }, []);
 
   const removeImage = useCallback((id: string) => {
@@ -203,9 +205,9 @@ export default function CameraScreen({ onAccept }: CameraScreenProps) {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) return;
-    const valid = files.filter((f) => f.type.startsWith("image/"));
-    if (!valid.length) { setCameraError("Please select a valid image file."); return; }
-    valid.forEach((f) => addImage(f));
+    const valid = files.filter((f) => f.type.startsWith("image/") || f.type === "application/pdf");
+    if (!valid.length) { setCameraError("Please select a valid image or PDF file."); return; }
+    valid.forEach((f) => addImage(f, f.name));
     setCameraError("");
     event.target.value = "";
   };
@@ -364,7 +366,7 @@ export default function CameraScreen({ onAccept }: CameraScreenProps) {
           id="camera-file-input"
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,application/pdf"
           multiple
           hidden
           onChange={handleFileUpload}
@@ -377,7 +379,7 @@ export default function CameraScreen({ onAccept }: CameraScreenProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
           >
-            UPLOAD IMAGE
+            UPLOAD DOCUMENT
           </button>
         ) : (
           <>
@@ -394,14 +396,29 @@ export default function CameraScreen({ onAccept }: CameraScreenProps) {
               {images.map((image, index) => (
                 <div
                   key={image.id}
-                  onClick={() => setSelectedImage(image.previewUrl)}
-                  style={{ position: "relative", width: "calc((100% - 20px) / 3)", minWidth: "88px", maxWidth: "110px", cursor: "pointer" }}
+                  onClick={() => !image.isPdf && setSelectedImage(image.previewUrl)}
+                  style={{ position: "relative", width: "calc((100% - 20px) / 3)", minWidth: "88px", maxWidth: "110px", cursor: image.isPdf ? "default" : "pointer" }}
                 >
-                  <img
-                    src={image.previewUrl}
-                    alt={`Page ${index + 1}`}
-                    style={{ width: "100%", height: "110px", objectFit: "cover", borderRadius: "8px", display: "block" }}
-                  />
+                  {image.isPdf ? (
+                    <div style={{ width: "100%", height: "110px", borderRadius: "8px", background: "var(--surface-warm)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px solid var(--border)", color: "var(--accent)" }}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                      </svg>
+                      <span style={{ fontSize: "10px", marginTop: "8px", color: "var(--muted)", textAlign: "center", padding: "0 6px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%", display: "block" }}>
+                        {image.name || "PDF Document"}
+                      </span>
+                    </div>
+                  ) : (
+                    <img
+                      src={image.previewUrl}
+                      alt={`Page ${index + 1}`}
+                      style={{ width: "100%", height: "110px", objectFit: "cover", borderRadius: "8px", display: "block" }}
+                    />
+                  )}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "6px", gap: "6px" }}>
                     <span className="hint">Page {index + 1}</span>
                     <button
@@ -419,7 +436,7 @@ export default function CameraScreen({ onAccept }: CameraScreenProps) {
 
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "12px", width: "100%" }}>
               <button type="button" className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>
-                Upload Image
+                Upload Document
               </button>
               <button
                 type="button"
