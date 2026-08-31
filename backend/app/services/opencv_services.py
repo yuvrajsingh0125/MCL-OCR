@@ -1,93 +1,77 @@
-"""THIS WHOLE CODE IS LIKE A TEMPLATE SO THAT THE FUNCTION NAMES STAY THE SAME WHILE YOU STILL HAVE TO COMPLETE THE ENTIRE FUNCTIONALITY"""
-
 from pathlib import Path
 import cv2
 import numpy as np
 
 PROCESSED_DIR = Path("processed")
-# this will create the processed directory if it doesn't exist
 PROCESSED_DIR.mkdir(exist_ok=True)
 
 
-# placeholder for openCV preprocessing.
 def process_image(file_path: str) -> str:
     """
-    Preprocess image to use for paddleocr and after adjusting the image, save processed RGB image.
+    Aggressive image enhancement pipeline optimised for blurry phone photos
+    of printed documents (Hindi/Punjabi/English text on white paper).
+
+    Steps:
+      1. Read & upscale small/blurry images (2x if shorter side < 1200 px)
+      2. Convert to grayscale
+      3. CLAHE (adaptive contrast)
+      4. Bilateral filter  — removes noise while keeping text edges crisp
+      5. Unsharp mask     — recovers sharpness lost by blur
+      6. Adaptive threshold -> clean black-and-white text image
+      7. Light dilation   — fills tiny gaps in thin strokes
+      8. Save as high-quality PNG (lossless, no JPEG artefacts)
     """
-    
     source = Path(file_path)
-    destination = PROCESSED_DIR / source.name
+    # Save as PNG to avoid recompression artefacts
+    destination = PROCESSED_DIR / (source.stem + "_processed.png")
 
-    # ------------------------------------------------
     # 1. Read image
-    # ------------------------------------------------
     image = cv2.imread(str(source))
-
     if image is None:
         raise ValueError(f"Could not read the image file: {source}")
 
-    # ------------------------------------------------
-    # 2. Convert BGR -> RGB
-    # ------------------------------------------------
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-    # ------------------------------------------------
-    # 3. Brightness Adjustment
-    # ------------------------------------------------
-    brightness = 0  # Adjust this value as needed
-    if brightness != 0:
-        rgb =  cv2.convertScaleAbs(
-            rgb,
-            alpha= 1.0,
-            beta= brightness
+    # 2. Upscale if resolution is too low (blurry phone shots)
+    h, w = image.shape[:2]
+    min_side = min(h, w)
+    if min_side < 1200:
+        scale = 1200 / min_side
+        image = cv2.resize(
+            image,
+            (int(w * scale), int(h * scale)),
+            interpolation=cv2.INTER_LANCZOS4,
         )
 
-     # ------------------------------------------------
-     # 4. Contrast Adjustment
-     # ------------------------------------------------
-    contrast = 1.0  # Adjust this value as needed
-    if contrast != 1.0:
-        rgb = cv2.convertScaleAbs(
-            rgb,
-            alpha= contrast,
-            beta= 0
-        )
+    # 3. Grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    # ------------------------------------------------
-    # 5. Denoising
-    # ------------------------------------------------
-    rgb= cv2.GaussianBlur(rgb, (3,3), 0)
+    # 4. CLAHE — adaptive histogram equalisation
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    gray = clahe.apply(gray)
 
-    # -------------------------------------------------
-    # 6. Sharpening 
-    # -------------------------------------------------
-    kernel = np.array([
-        [0, -1, 0],
-        [-1, 5,-1],
-        [0, -1, 0]
-    ])
-    rgb = cv2.filter2D(rgb, -1, kernel)
+    # 5. Bilateral filter — noise reduction that preserves edges
+    gray = cv2.bilateralFilter(gray, d=9, sigmaColor=75, sigmaSpace=75)
 
-    # -------------------------------------------------
-    # 7. Ensuring 8-bit  3-channel image
-    # -------------------------------------------------
-    rgb =  np.clip(rgb, 0, 255).astype(np.uint8)
+    # 6. Unsharp mask — sharpens blurry text
+    blurred_for_usm = cv2.GaussianBlur(gray, (0, 0), sigmaX=3)
+    gray = cv2.addWeighted(gray, 1.5, blurred_for_usm, -0.5, 0)
 
-    if len(rgb.shape) != 3 or rgb.shape[2] != 3:
-        raise ValueError(f"Processed image is not a 3-channel RGB image: {destination}")
+    # 7. Adaptive thresholding -> crisp black-on-white document image
+    binary = cv2.adaptiveThreshold(
+        gray,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        blockSize=31,
+        C=15,
+    )
 
-    # -------------------------------------------------
-    # Convert RGB -> BGR and save the processed image
-    # -------------------------------------------------
-    output_bgr =  cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-    success = cv2.imwrite(str(destination), output_bgr)
+    # 8. Light dilation — closes tiny gaps in character strokes
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    binary = cv2.dilate(binary, kernel, iterations=1)
+
+    # 9. Save as lossless PNG
+    success = cv2.imwrite(str(destination), binary)
     if not success:
-        raise IOError(f"Failed to write the processed image to: {destination}")
-
-    # # convert image to grayscale
-    # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-    # # save processed image
-    # cv2.imwrite(str(destination), gray)    
+        raise IOError(f"Failed to write processed image to: {destination}")
 
     return str(destination)

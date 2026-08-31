@@ -83,7 +83,7 @@ export default function App() {
     setScreen("camera");
   };
 
-  const handleProceed = async (files: Blob[]) => {
+  const handleProceed = async (files: Blob[], meta?: { wardNumber: string; employabilityStatus: string }) => {
     if (!files.length) return;
 
     setStages(INITIAL_STAGES);
@@ -98,6 +98,10 @@ export default function App() {
       const fileName = `document-${index + 1}.${ext}`;
       formData.append("files", blob, fileName);
     });
+
+    // Append metadata fields if provided
+    if (meta?.wardNumber) formData.append("ward_number", meta.wardNumber);
+    if (meta?.employabilityStatus) formData.append("employability_status", meta.employabilityStatus);
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
@@ -247,7 +251,7 @@ export default function App() {
       <TopNav />
       <main className="viewport" id="content">
         <div className={`screen ${screen === "camera" ? "active" : ""}`} id="capture" data-od-id="capture-screen">
-          <CameraScreen key={cameraSessionKey} onAccept={handleProceed} />
+          <CameraScreen key={cameraSessionKey} onAccept={(imgs, meta) => handleProceed(imgs, meta)} />
         </div>
         <div className={`screen ${screen === "processing" ? "active" : ""}`} id="processing" data-od-id="processing-screen">
           <ProcessingScreen
